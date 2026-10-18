@@ -93,6 +93,13 @@ class IncidentEngine:
     @staticmethod
     def _activity_for(label: str) -> str | None:
         normalized = label.strip().lower().replace("_", " ")
+        if normalized in {"phone use", "phone usage", "using phone"}:
+            return "mobile phone usage"
+        if normalized in {
+            "head down one hand down",
+            "head down both hands down",
+        }:
+            return f"possible phone use posture: {normalized}"
         if normalized in {"cell phone", "cellphone", "mobile phone", "phone"}:
             return "mobile phone usage"
         if normalized in {"food", "eating", "snack"}:

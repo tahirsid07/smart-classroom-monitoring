@@ -22,13 +22,20 @@ The current project is a command-line/OpenCV application and does not yet includ
 ## Features
 
 - Webcam and video-file monitoring
-- YOLO detections mapped to mobile-phone use and eating labels
+- YOLO person and phone detections combined with temporal motion checks for phone use
+- Phone-use alerts require a phone in a person's upper-body area for several frames
+  and enough movement; a phone merely resting nearby does not trigger this rule
+- Pose-based possible-use alerts cover a lowered head with one hand down or both
+  hands down, sustained across several frames
+- YOLO detections mapped to eating labels
 - Confidence filtering and duplicate-alert cooldown
 - Incident metadata stored in SQLite
 - Optional Telegram notifications
 - Optional face matching against a locally maintained student gallery
 
 A standard COCO-trained YOLO model can detect cell phones, but it does not reliably classify eating. Use a separately trained model for that activity. Alerts should be reviewed by a human; detections alone are not proof of misconduct.
+
+Phone-use detection is a configurable heuristic based on phone position and movement across consecutive frames; it is not a trained activity-recognition model. A second YOLO pose model also flags a lowered head with one or both hands down as **possible** phone use. That posture alone cannot prove that a phone is present, so treat it as a review signal. Adjust the persistence, movement threshold, upper-body area, and pose thresholds with the `PHONE_USE_*`, `POSTURE_CONSECUTIVE_FRAMES`, `HEAD_DOWN_EAR_OFFSET`, and `HAND_DOWN_SHOULDER_OFFSET` settings in `.env`. The pose model defaults to `yolo11n-pose.pt` and is downloaded by Ultralytics on first use; running two models can reduce the frame rate. Test settings with representative classroom footage before relying on alerts.
 
 ## Setup (macOS/Linux)
 
@@ -66,6 +73,7 @@ Choose a camera or video and model explicitly:
 ```bash
 classroom-monitor --source 0 --model yolo11n.pt
 classroom-monitor --source path/to/classroom.mp4 --model path/to/best.pt
+classroom-monitor --source path/to/classroom.mp4 --model path/to/best.pt --pose-model path/to/yolo11n-pose.pt
 ```
 
 On a headless machine, add `--no-display`. Press `q` in the OpenCV window to stop. The YOLO weights can be downloaded by Ultralytics when the named model is first used.

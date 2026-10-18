@@ -8,6 +8,8 @@ from .config import Settings
 from .engine import IncidentEngine
 from .face import StudentMatch, StudentRecognizer
 from .notifier import NullNotifier, TelegramNotifier
+from .phone_use import PhoneUseMotionDetector
+from .posture import HeadHandPostureDetector, pose_people_from_result
 from .storage import IncidentStore
 
 
@@ -39,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Smart Classroom Monitoring System")
     parser.add_argument("--source", help="Camera index or video path")
     parser.add_argument("--model", help="YOLO model path, for example yolo11n.pt")
+    parser.add_argument("--pose-model", help="YOLO pose model path, for example yolo11n-pose.pt")
     parser.add_argument("--no-display", action="store_true", help="Run without an OpenCV window")
     return parser
 
@@ -48,6 +51,7 @@ def main() -> None:
     settings = Settings.from_environment()
     source = arguments.source or settings.camera_source
     model_path = arguments.model or settings.model_path
+    pose_model_path = arguments.pose_model or settings.pose_model_path
 
     try:
         from ultralytics import YOLO
@@ -56,6 +60,7 @@ def main() -> None:
         raise SystemExit("Install runtime dependencies first: python -m pip install -r backend/requirements.txt") from error
 
     model = YOLO(model_path)
+    pose_model = YOLO(pose_model_path)
     capture = open_capture(source)
     store = IncidentStore()
     notifier = (
@@ -69,6 +74,17 @@ def main() -> None:
         capture=save_crop,
         confidence_threshold=settings.confidence_threshold,
         cooldown_seconds=settings.cooldown_seconds,
+    )
+    phone_use_detector = PhoneUseMotionDetector(
+        consecutive_frames=settings.phone_use_consecutive_frames,
+        motion_threshold_pixels=settings.phone_use_motion_threshold_pixels,
+        upper_body_fraction=settings.phone_use_upper_body_fraction,
+    )
+    posture_detector = HeadHandPostureDetector(
+        consecutive_frames=settings.posture_consecutive_frames,
+        keypoint_confidence=settings.pose_keypoint_confidence,
+        head_down_ear_offset=settings.head_down_ear_offset,
+        hand_down_shoulder_offset=settings.hand_down_shoulder_offset,
     )
     recognizer = None
     if not arguments.no_display:
@@ -109,13 +125,52 @@ def main() -> None:
             if not success:
                 break
             result = model(frame, verbose=False)[0]
+            pose_result = pose_model(frame, verbose=False)[0]
             detections = detections_from_result(result, settings.confidence_threshold)
             current_detections = detections
-            incidents = engine.handle_frame(frame, detections)
+            phone_use_detections = phone_use_detector.update(detections)
+            posture_detections = posture_detector.update(
+                pose_people_from_result(pose_result)
+            )
+            incident_detections = [
+                detection
+                for detection in detections
+                if not PhoneUseMotionDetector.is_phone_label(detection.label)
+            ]
+            incidents = engine.handle_frame(
+                frame,
+                incident_detections + phone_use_detections + posture_detections,
+            )
             for incident in incidents:
                 print(f"Alert: {incident.activity} ({incident.confidence:.0%})")
             if not arguments.no_display:
                 annotated = result.plot()
+                for phone_use in phone_use_detections:
+                    x1, y1, x2, y2 = phone_use.box
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 200, 255), 3)
+                    cv2.putText(
+                        annotated,
+                        "PHONE USE (motion)",
+                        (x1, max(22, y1 - 8)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.65,
+                        (0, 200, 255),
+                        2,
+                        cv2.LINE_AA,
+                    )
+                for posture in posture_detections:
+                    x1, y1, x2, y2 = posture.box
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 180, 0), 2)
+                    cv2.putText(
+                        annotated,
+                        f"POSSIBLE PHONE USE: {posture.label}",
+                        (x1, max(22, y1 - 8)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (255, 180, 0),
+                        2,
+                        cv2.LINE_AA,
+                    )
                 if selected_person is not None:
                     x1, y1, x2, y2 = selected_person.box
                     cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 255), 2)
