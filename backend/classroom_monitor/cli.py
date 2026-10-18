@@ -93,7 +93,7 @@ def main() -> None:
                 settings.student_gallery_dir, settings.face_match_tolerance
             )
             print(f"Loaded {len(recognizer.profiles)} student face profile(s).")
-        except RuntimeError as error:
+        except Exception as error:
             print(f"Face recognition unavailable: {error}")
 
     window_name = "Smart Classroom Monitor"
