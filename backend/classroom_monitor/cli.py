@@ -145,6 +145,56 @@ def main() -> None:
                 print(f"Alert: {incident.activity} ({incident.confidence:.0%})")
             if not arguments.no_display:
                 annotated = result.plot()
+                motion_lines = ["MOTION DETECTION: ON"]
+                active_motion_labels = [
+                    "PHONE USE: MOTION DETECTED"
+                    for _ in phone_use_detections
+                ]
+                active_motion_labels.extend(
+                    f"POSTURE: {posture.label.upper()}"
+                    for posture in posture_detections
+                )
+                if active_motion_labels:
+                    motion_lines.extend(active_motion_labels[:2])
+                    if len(active_motion_labels) > 2:
+                        motion_lines.append(f"+{len(active_motion_labels) - 2} more alert(s)")
+                else:
+                    motion_lines.append("Status: monitoring, no alert")
+
+                motion_color = (0, 200, 255) if active_motion_labels else (80, 200, 80)
+                line_height = 23
+                panel_width = max(
+                    cv2.getTextSize(line, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)[0][0]
+                    for line in motion_lines
+                ) + 24
+                motion_panel_height = 14 + line_height * len(motion_lines)
+                motion_panel_right = min(annotated.shape[1] - 10, 10 + panel_width)
+                cv2.rectangle(
+                    annotated,
+                    (10, 10),
+                    (motion_panel_right, 10 + motion_panel_height),
+                    (25, 25, 25),
+                    -1,
+                )
+                cv2.rectangle(
+                    annotated,
+                    (10, 10),
+                    (motion_panel_right, 10 + motion_panel_height),
+                    motion_color,
+                    2,
+                )
+                for line_number, line in enumerate(motion_lines):
+                    cv2.putText(
+                        annotated,
+                        line,
+                        (20, 31 + line_number * line_height),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.55,
+                        (255, 255, 255),
+                        2,
+                        cv2.LINE_AA,
+                    )
+
                 for phone_use in phone_use_detections:
                     x1, y1, x2, y2 = phone_use.box
                     cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 200, 255), 3)
@@ -182,12 +232,19 @@ def main() -> None:
                             f"{key}: {value}" for key, value in selected_match.details.items()
                         )
                     panel_height = 30 + 24 * len(detail_lines)
-                    cv2.rectangle(annotated, (10, 10), (360, panel_height), (25, 25, 25), -1)
+                    profile_top = 20 + motion_panel_height
+                    cv2.rectangle(
+                        annotated,
+                        (10, profile_top),
+                        (360, profile_top + panel_height),
+                        (25, 25, 25),
+                        -1,
+                    )
                     for line_number, line in enumerate(detail_lines):
                         cv2.putText(
                             annotated,
                             line[:42],
-                            (20, 38 + line_number * 24),
+                            (20, profile_top + 28 + line_number * 24),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
                             (255, 255, 255),
