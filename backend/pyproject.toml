@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-classroom-monitor"
+version = "0.1.0"
+description = "Real-time classroom incident detection with optional YOLO and Telegram integrations"
+requires-python = ">=3.12"
+
+[project.scripts]
+classroom-monitor = "classroom_monitor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["classroom_monitor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

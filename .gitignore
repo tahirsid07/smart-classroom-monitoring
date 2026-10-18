@@ -1,0 +1,21 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Private runtime data: recordings, student gallery, database, downloaded models
+/data/*
+!/data/README.md
+
+# Local model weights
+*.pt
+
+# macOS
+.DS_Store

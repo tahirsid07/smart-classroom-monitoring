@@ -1,0 +1,8 @@
+# Install these for the live camera and notification integrations.
+opencv-python>=4.9
+ultralytics>=8.3
+requests>=2.31
+certifi>=2024.2.2
+
+# Development and testing
+pytest>=8.0

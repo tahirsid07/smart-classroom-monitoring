@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run classroom monitor",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "classroom_monitor.cli",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/backend"
+      },
+      "args": ["--source", "0", "--model", "yolo11n.pt"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
